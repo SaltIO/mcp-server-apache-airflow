@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import mcp.types as types
@@ -8,8 +8,8 @@ from airflow_client.client.model.dag_run import DAGRun
 from airflow_client.client.model.set_dag_run_note import SetDagRunNote
 from airflow_client.client.model.update_dag_run_state import UpdateDagRunState
 
-from src.airflow.airflow_client import api_client
-from src.envs import AIRFLOW_HOST
+from src.airflow.airflow_client import api_client, _is_v2_or_greater
+from src.envs import AIRFLOW_HOST, AIRFLOW_API_VERSION
 
 dag_run_api = DAGRunApi(api_client)
 
@@ -43,6 +43,10 @@ async def post_dag_run(
     note: Optional[str] = None,
     # state: Optional[str] = None,  # TODO: add state
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
+    # For v2+ API, logical_date is required. If not provided, use current datetime
+    if _is_v2_or_greater(AIRFLOW_API_VERSION) and logical_date is None:
+        logical_date = datetime.now(timezone.utc)
+
     # Build kwargs dictionary with only non-None values
     kwargs = {}
 

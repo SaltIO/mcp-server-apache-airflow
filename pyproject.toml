@@ -1,9 +1,10 @@
 [project]
-name = "mcp-server-apache-airflow"
-version = "0.2.9"
-description = "Model Context Protocol (MCP) server for Apache Airflow"
+name = "cmdrvl-mcp-server-apache-airflow"
+version = "0.2.10"
+description = "Model Context Protocol (MCP) server for Apache Airflow (CMDRVL fork with redirect fix)"
 authors = [
-    { name = "Gyeongmo Yang", email = "me@yanggyeongmo.com" }
+    { name = "Gyeongmo Yang", email = "me@yanggyeongmo.com" },
+    { name = "CMD+RVL Team", email = "team@cmdrvl.com" }
 ]
 dependencies = [
     "httpx>=0.24.1",
