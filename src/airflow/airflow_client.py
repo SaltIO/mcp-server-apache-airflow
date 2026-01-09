@@ -102,7 +102,8 @@ def fetch_jwt_token(airflow_host: str, username: str, password: str) -> str:
             timeout=urllib3.Timeout(connect=10, read=10)
         )
 
-        if response.status != 200:
+        # Accept both 200 OK and 201 Created as success
+        if response.status not in (200, 201):
             raise Exception(f"Token fetch failed with status {response.status}: {response.data.decode('utf-8')}")
 
         # The response should contain the token
