@@ -3,7 +3,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 import mcp.types as types
 from airflow_client.client.api.dataset_api import DatasetApi
 
-from src.airflow.airflow_client import api_client
+from src.airflow.airflow_client import api_client, call_with_token_refresh
 
 dataset_api = DatasetApi(api_client)
 
@@ -59,14 +59,14 @@ async def get_datasets(
     if dag_ids is not None:
         kwargs["dag_ids"] = dag_ids
 
-    response = dataset_api.get_datasets(**kwargs)
+    response = call_with_token_refresh(dataset_api.get_datasets, **kwargs)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
 async def get_dataset(
     uri: str,
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = dataset_api.get_dataset(uri=uri)
+    response = call_with_token_refresh(dataset_api.get_dataset, uri=uri)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
@@ -99,7 +99,7 @@ async def get_dataset_events(
     if source_map_index is not None:
         kwargs["source_map_index"] = source_map_index
 
-    response = dataset_api.get_dataset_events(**kwargs)
+    response = call_with_token_refresh(dataset_api.get_dataset_events, **kwargs)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
@@ -113,7 +113,7 @@ async def create_dataset_event(
     if extra is not None:
         event_request["extra"] = extra
 
-    response = dataset_api.create_dataset_event(create_dataset_event=event_request)
+    response = call_with_token_refresh(dataset_api.create_dataset_event, create_dataset_event=event_request)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
@@ -121,14 +121,14 @@ async def get_dag_dataset_queued_event(
     dag_id: str,
     uri: str,
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = dataset_api.get_dag_dataset_queued_event(dag_id=dag_id, uri=uri)
+    response = call_with_token_refresh(dataset_api.get_dag_dataset_queued_event, dag_id=dag_id, uri=uri)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
 async def get_dag_dataset_queued_events(
     dag_id: str,
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = dataset_api.get_dag_dataset_queued_events(dag_id=dag_id)
+    response = call_with_token_refresh(dataset_api.get_dag_dataset_queued_events, dag_id=dag_id)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
@@ -136,7 +136,7 @@ async def delete_dag_dataset_queued_event(
     dag_id: str,
     uri: str,
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = dataset_api.delete_dag_dataset_queued_event(dag_id=dag_id, uri=uri)
+    response = call_with_token_refresh(dataset_api.delete_dag_dataset_queued_event, dag_id=dag_id, uri=uri)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
@@ -148,14 +148,14 @@ async def delete_dag_dataset_queued_events(
     if before is not None:
         kwargs["before"] = before
 
-    response = dataset_api.delete_dag_dataset_queued_events(dag_id=dag_id, **kwargs)
+    response = call_with_token_refresh(dataset_api.delete_dag_dataset_queued_events, dag_id=dag_id, **kwargs)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
 async def get_dataset_queued_events(
     uri: str,
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = dataset_api.get_dataset_queued_events(uri=uri)
+    response = call_with_token_refresh(dataset_api.get_dataset_queued_events, uri=uri)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
@@ -167,5 +167,5 @@ async def delete_dataset_queued_events(
     if before is not None:
         kwargs["before"] = before
 
-    response = dataset_api.delete_dataset_queued_events(uri=uri, **kwargs)
+    response = call_with_token_refresh(dataset_api.delete_dataset_queued_events, uri=uri, **kwargs)
     return [types.TextContent(type="text", text=str(response.to_dict()))]

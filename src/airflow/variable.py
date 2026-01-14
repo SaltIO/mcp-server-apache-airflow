@@ -3,7 +3,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 import mcp.types as types
 from airflow_client.client.api.variable_api import VariableApi
 
-from src.airflow.airflow_client import api_client
+from src.airflow.airflow_client import api_client, call_with_token_refresh
 
 variable_api = VariableApi(api_client)
 
@@ -33,7 +33,7 @@ async def list_variables(
     if order_by is not None:
         kwargs["order_by"] = order_by
 
-    response = variable_api.get_variables(**kwargs)
+    response = call_with_token_refresh(variable_api.get_variables, **kwargs)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
@@ -47,12 +47,12 @@ async def create_variable(
     if description is not None:
         variable_request["description"] = description
 
-    response = variable_api.post_variables(variable_request=variable_request)
+    response = call_with_token_refresh(variable_api.post_variables, variable_request=variable_request)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
 async def get_variable(key: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = variable_api.get_variable(variable_key=key)
+    response = call_with_token_refresh(variable_api.get_variable, variable_key=key)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
@@ -65,12 +65,13 @@ async def update_variable(
     if description is not None:
         update_request["description"] = description
 
-    response = variable_api.patch_variable(
+    response = call_with_token_refresh(
+        variable_api.patch_variable,
         variable_key=key, update_mask=list(update_request.keys()), variable_request=update_request
     )
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
 async def delete_variable(key: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = variable_api.delete_variable(variable_key=key)
+    response = call_with_token_refresh(variable_api.delete_variable, variable_key=key)
     return [types.TextContent(type="text", text=str(response.to_dict()))]

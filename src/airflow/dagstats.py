@@ -3,7 +3,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 import mcp.types as types
 from airflow_client.client.api.dag_stats_api import DagStatsApi
 
-from src.airflow.airflow_client import api_client
+from src.airflow.airflow_client import api_client, call_with_token_refresh
 
 dag_stats_api = DagStatsApi(api_client)
 
@@ -23,5 +23,5 @@ async def get_dag_stats(
     if dag_ids is not None:
         kwargs["dag_ids"] = dag_ids
 
-    response = dag_stats_api.get_dag_stats(**kwargs)
+    response = call_with_token_refresh(dag_stats_api.get_dag_stats, **kwargs)
     return [types.TextContent(type="text", text=str(response.to_dict()))]

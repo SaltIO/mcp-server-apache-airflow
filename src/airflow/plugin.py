@@ -3,7 +3,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 import mcp.types as types
 from airflow_client.client.api.plugin_api import PluginApi
 
-from src.airflow.airflow_client import api_client
+from src.airflow.airflow_client import api_client, call_with_token_refresh
 
 plugin_api = PluginApi(api_client)
 
@@ -36,5 +36,5 @@ async def get_plugins(
     if offset is not None:
         kwargs["offset"] = offset
 
-    response = plugin_api.get_plugins(**kwargs)
+    response = call_with_token_refresh(plugin_api.get_plugins, **kwargs)
     return [types.TextContent(type="text", text=str(response.to_dict()))]

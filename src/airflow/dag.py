@@ -6,7 +6,7 @@ from airflow_client.client.model.clear_task_instances import ClearTaskInstances
 from airflow_client.client.model.dag import DAG
 from airflow_client.client.model.update_task_instances_state import UpdateTaskInstancesState
 
-from src.airflow.airflow_client import api_client
+from src.airflow.airflow_client import api_client, call_with_token_refresh
 from src.envs import AIRFLOW_HOST
 
 dag_api = DAGApi(api_client)
@@ -64,7 +64,7 @@ async def get_dags(
         kwargs["dag_id_pattern"] = dag_id_pattern
 
     # Use the client to fetch DAGs
-    response = dag_api.get_dags(**kwargs)
+    response = call_with_token_refresh(dag_api.get_dags, **kwargs)
 
     # Convert response to dictionary for easier manipulation
     response_dict = response.to_dict()
@@ -77,7 +77,7 @@ async def get_dags(
 
 
 async def get_dag(dag_id: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = dag_api.get_dag(dag_id=dag_id)
+    response = call_with_token_refresh(dag_api.get_dag, dag_id=dag_id)
 
     # Convert response to dictionary for easier manipulation
     response_dict = response.to_dict()
@@ -96,29 +96,29 @@ async def get_dag_details(
     if fields is not None:
         kwargs["fields"] = fields
 
-    response = dag_api.get_dag_details(dag_id=dag_id, **kwargs)
+    response = call_with_token_refresh(dag_api.get_dag_details, dag_id=dag_id, **kwargs)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
 async def get_dag_source(file_token: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = dag_api.get_dag_source(file_token=file_token)
+    response = call_with_token_refresh(dag_api.get_dag_source, file_token=file_token)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
 async def pause_dag(dag_id: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
     dag = DAG(is_paused=True)
-    response = dag_api.patch_dag(dag_id=dag_id, dag=dag, update_mask=["is_paused"])
+    response = call_with_token_refresh(dag_api.patch_dag, dag_id=dag_id, dag=dag, update_mask=["is_paused"])
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
 async def unpause_dag(dag_id: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
     dag = DAG(is_paused=False)
-    response = dag_api.patch_dag(dag_id=dag_id, dag=dag, update_mask=["is_paused"])
+    response = call_with_token_refresh(dag_api.patch_dag, dag_id=dag_id, dag=dag, update_mask=["is_paused"])
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
 async def get_dag_tasks(dag_id: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = dag_api.get_tasks(dag_id=dag_id)
+    response = call_with_token_refresh(dag_api.get_tasks, dag_id=dag_id)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
@@ -137,7 +137,7 @@ async def patch_dag(
 
     dag = DAG(**update_request)
 
-    response = dag_api.patch_dag(dag_id=dag_id, dag=dag, update_mask=update_mask)
+    response = call_with_token_refresh(dag_api.patch_dag, dag_id=dag_id, dag=dag, update_mask=update_mask)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
@@ -162,19 +162,19 @@ async def patch_dags(
     if dag_id_pattern is not None:
         kwargs["dag_id_pattern"] = dag_id_pattern
 
-    response = dag_api.patch_dags(dag_id_pattern=dag_id_pattern, dag=dag, update_mask=update_mask, **kwargs)
+    response = call_with_token_refresh(dag_api.patch_dags, dag_id_pattern=dag_id_pattern, dag=dag, update_mask=update_mask, **kwargs)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
 async def delete_dag(dag_id: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = dag_api.delete_dag(dag_id=dag_id)
+    response = call_with_token_refresh(dag_api.delete_dag, dag_id=dag_id)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
 async def get_task(
     dag_id: str, task_id: str
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = dag_api.get_task(dag_id=dag_id, task_id=task_id)
+    response = call_with_token_refresh(dag_api.get_task, dag_id=dag_id, task_id=task_id)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
@@ -185,7 +185,7 @@ async def get_tasks(
     if order_by is not None:
         kwargs["order_by"] = order_by
 
-    response = dag_api.get_tasks(dag_id=dag_id, **kwargs)
+    response = call_with_token_refresh(dag_api.get_tasks, dag_id=dag_id, **kwargs)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
@@ -229,7 +229,7 @@ async def clear_task_instances(
 
     clear_task_instances = ClearTaskInstances(**clear_request)
 
-    response = dag_api.post_clear_task_instances(dag_id=dag_id, clear_task_instances=clear_task_instances)
+    response = call_with_token_refresh(dag_api.post_clear_task_instances, dag_id=dag_id, clear_task_instances=clear_task_instances)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
@@ -262,7 +262,8 @@ async def set_task_instances_state(
 
     update_task_instances_state = UpdateTaskInstancesState(**state_request)
 
-    response = dag_api.post_set_task_instances_state(
+    response = call_with_token_refresh(
+        dag_api.post_set_task_instances_state,
         dag_id=dag_id,
         update_task_instances_state=update_task_instances_state,
     )
@@ -272,5 +273,5 @@ async def set_task_instances_state(
 async def reparse_dag_file(
     file_token: str,
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = dag_api.reparse_dag_file(file_token=file_token)
+    response = call_with_token_refresh(dag_api.reparse_dag_file, file_token=file_token)
     return [types.TextContent(type="text", text=str(response.to_dict()))]

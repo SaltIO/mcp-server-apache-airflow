@@ -4,7 +4,7 @@ import mcp.types as types
 from airflow_client.client.api.pool_api import PoolApi
 from airflow_client.client.model.pool import Pool
 
-from src.airflow.airflow_client import api_client
+from src.airflow.airflow_client import api_client, call_with_token_refresh
 
 pool_api = PoolApi(api_client)
 
@@ -45,7 +45,7 @@ async def get_pools(
     if order_by is not None:
         kwargs["order_by"] = order_by
 
-    response = pool_api.get_pools(**kwargs)
+    response = call_with_token_refresh(pool_api.get_pools, **kwargs)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
@@ -61,7 +61,7 @@ async def get_pool(
     Returns:
         The pool details.
     """
-    response = pool_api.get_pool(pool_name=pool_name)
+    response = call_with_token_refresh(pool_api.get_pool, pool_name=pool_name)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
@@ -77,7 +77,7 @@ async def delete_pool(
     Returns:
         A confirmation message.
     """
-    pool_api.delete_pool(pool_name=pool_name)
+    call_with_token_refresh(pool_api.delete_pool, pool_name=pool_name)
     return [types.TextContent(type="text", text=f"Pool '{pool_name}' deleted successfully.")]
 
 
@@ -110,7 +110,7 @@ async def post_pool(
     if include_deferred is not None:
         pool.include_deferred = include_deferred
 
-    response = pool_api.post_pool(pool=pool)
+    response = call_with_token_refresh(pool_api.post_pool, pool=pool)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
@@ -143,5 +143,5 @@ async def patch_pool(
     if include_deferred is not None:
         pool.include_deferred = include_deferred
 
-    response = pool_api.patch_pool(pool_name=pool_name, pool=pool)
+    response = call_with_token_refresh(pool_api.patch_pool, pool_name=pool_name, pool=pool)
     return [types.TextContent(type="text", text=str(response.to_dict()))]

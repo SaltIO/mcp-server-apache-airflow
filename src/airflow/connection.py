@@ -3,7 +3,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 import mcp.types as types
 from airflow_client.client.api.connection_api import ConnectionApi
 
-from src.airflow.airflow_client import api_client
+from src.airflow.airflow_client import api_client, call_with_token_refresh
 
 connection_api = ConnectionApi(api_client)
 
@@ -34,7 +34,7 @@ async def list_connections(
     if order_by is not None:
         kwargs["order_by"] = order_by
 
-    response = connection_api.get_connections(**kwargs)
+    response = call_with_token_refresh(connection_api.get_connections, **kwargs)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
@@ -65,12 +65,12 @@ async def create_connection(
     if extra is not None:
         connection_request["extra"] = extra
 
-    response = connection_api.post_connection(connection_request=connection_request)
+    response = call_with_token_refresh(connection_api.post_connection, connection_request=connection_request)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
 async def get_connection(conn_id: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = connection_api.get_connection(connection_id=conn_id)
+    response = call_with_token_refresh(connection_api.get_connection, connection_id=conn_id)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
@@ -100,14 +100,15 @@ async def update_connection(
     if extra is not None:
         update_request["extra"] = extra
 
-    response = connection_api.patch_connection(
+    response = call_with_token_refresh(
+        connection_api.patch_connection,
         connection_id=conn_id, update_mask=list(update_request.keys()), connection_request=update_request
     )
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
 async def delete_connection(conn_id: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = connection_api.delete_connection(connection_id=conn_id)
+    response = call_with_token_refresh(connection_api.delete_connection, connection_id=conn_id)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
@@ -136,5 +137,5 @@ async def test_connection(
     if extra is not None:
         connection_request["extra"] = extra
 
-    response = connection_api.test_connection(connection_request=connection_request)
+    response = call_with_token_refresh(connection_api.test_connection, connection_request=connection_request)
     return [types.TextContent(type="text", text=str(response.to_dict()))]

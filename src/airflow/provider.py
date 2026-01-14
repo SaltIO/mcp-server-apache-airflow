@@ -3,7 +3,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 import mcp.types as types
 from airflow_client.client.api.provider_api import ProviderApi
 
-from src.airflow.airflow_client import api_client
+from src.airflow.airflow_client import api_client, call_with_token_refresh
 
 provider_api = ProviderApi(api_client)
 
@@ -36,5 +36,5 @@ async def get_providers(
     if offset is not None:
         kwargs["offset"] = offset
 
-    response = provider_api.get_providers(**kwargs)
+    response = call_with_token_refresh(provider_api.get_providers, **kwargs)
     return [types.TextContent(type="text", text=str(response.to_dict()))]

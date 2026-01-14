@@ -8,7 +8,7 @@ from airflow_client.client.model.dag_run import DAGRun
 from airflow_client.client.model.set_dag_run_note import SetDagRunNote
 from airflow_client.client.model.update_dag_run_state import UpdateDagRunState
 
-from src.airflow.airflow_client import api_client, _is_v2_or_greater
+from src.airflow.airflow_client import api_client, _is_v2_or_greater, call_with_token_refresh
 from src.envs import AIRFLOW_HOST, AIRFLOW_API_VERSION
 
 dag_run_api = DAGRunApi(api_client)
@@ -33,6 +33,44 @@ def get_dag_run_url(dag_id: str, dag_run_id: str) -> str:
     return f"{AIRFLOW_HOST}/dags/{dag_id}/grid?dag_run_id={dag_run_id}"
 
 
+def _parse_datetime(value: Any) -> Optional[datetime]:
+    """
+    Parse a datetime value from string or return datetime object.
+
+    Args:
+        value: String (ISO 8601 format) or datetime object
+
+    Returns:
+        datetime object or None
+    """
+    if value is None:
+        return None
+
+    if isinstance(value, datetime):
+        return value
+
+    if isinstance(value, str):
+        try:
+            # Try parsing ISO 8601 format (e.g., "2024-01-01T00:00:00Z" or "2024-01-01T00:00:00+00:00")
+            # Replace Z at end of string with +00:00 for fromisoformat
+            normalized_value = value
+            if value.endswith('Z'):
+                normalized_value = value[:-1] + '+00:00'
+
+            # Parse ISO format
+            dt = datetime.fromisoformat(normalized_value)
+
+            # Ensure timezone-aware (default to UTC if naive)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+
+            return dt
+        except (ValueError, AttributeError) as e:
+            raise ValueError(f"Invalid datetime format: {value}. Expected ISO 8601 format (e.g., '2024-01-01T00:00:00Z')") from e
+
+    raise TypeError(f"Expected datetime or string, got {type(value).__name__}")
+
+
 async def post_dag_run(
     dag_id: str,
     dag_run_id: Optional[str] = None,
@@ -43,6 +81,12 @@ async def post_dag_run(
     note: Optional[str] = None,
     # state: Optional[str] = None,  # TODO: add state
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
+    # Convert string dates to datetime objects if needed (from JSON/chat interface)
+    data_interval_end = _parse_datetime(data_interval_end)
+    data_interval_start = _parse_datetime(data_interval_start)
+    execution_date = _parse_datetime(execution_date)
+    logical_date = _parse_datetime(logical_date)
+
     # For v2+ API, logical_date is required. If not provided, use current datetime
     if _is_v2_or_greater(AIRFLOW_API_VERSION) and logical_date is None:
         logical_date = datetime.now(timezone.utc)
@@ -67,7 +111,7 @@ async def post_dag_run(
     # Create DAGRun without read-only fields
     dag_run = DAGRun(**kwargs)
 
-    response = dag_run_api.post_dag_run(dag_id=dag_id, dag_run=dag_run)
+    response = call_with_token_refresh(dag_run_api.post_dag_run, dag_id=dag_id, dag_run=dag_run)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
@@ -113,7 +157,7 @@ async def get_dag_runs(
     if order_by is not None:
         kwargs["order_by"] = order_by
 
-    response = dag_run_api.get_dag_runs(dag_id=dag_id, **kwargs)
+    response = call_with_token_refresh(dag_run_api.get_dag_runs, dag_id=dag_id, **kwargs)
 
     # Convert response to dictionary for easier manipulation
     response_dict = response.to_dict()
@@ -163,7 +207,7 @@ async def get_dag_runs_batch(
     if page_limit is not None:
         request["page_limit"] = page_limit
 
-    response = dag_run_api.get_dag_runs_batch(list_dag_runs_form=request)
+    response = call_with_token_refresh(dag_run_api.get_dag_runs_batch, list_dag_runs_form=request)
 
     # Convert response to dictionary for easier manipulation
     response_dict = response.to_dict()
@@ -178,7 +222,7 @@ async def get_dag_runs_batch(
 async def get_dag_run(
     dag_id: str, dag_run_id: str
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = dag_run_api.get_dag_run(dag_id=dag_id, dag_run_id=dag_run_id)
+    response = call_with_token_refresh(dag_run_api.get_dag_run, dag_id=dag_id, dag_run_id=dag_run_id)
 
     # Convert response to dictionary for easier manipulation
     response_dict = response.to_dict()
@@ -193,7 +237,8 @@ async def update_dag_run_state(
     dag_id: str, dag_run_id: str, state: Optional[str] = None
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
     update_dag_run_state = UpdateDagRunState(state=state)
-    response = dag_run_api.update_dag_run_state(
+    response = call_with_token_refresh(
+        dag_run_api.update_dag_run_state,
         dag_id=dag_id,
         dag_run_id=dag_run_id,
         update_dag_run_state=update_dag_run_state,
@@ -204,7 +249,7 @@ async def update_dag_run_state(
 async def delete_dag_run(
     dag_id: str, dag_run_id: str
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = dag_run_api.delete_dag_run(dag_id=dag_id, dag_run_id=dag_run_id)
+    response = call_with_token_refresh(dag_run_api.delete_dag_run, dag_id=dag_id, dag_run_id=dag_run_id)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
@@ -212,7 +257,7 @@ async def clear_dag_run(
     dag_id: str, dag_run_id: str, dry_run: Optional[bool] = None
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
     clear_dag_run = ClearDagRun(dry_run=dry_run)
-    response = dag_run_api.clear_dag_run(dag_id=dag_id, dag_run_id=dag_run_id, clear_dag_run=clear_dag_run)
+    response = call_with_token_refresh(dag_run_api.clear_dag_run, dag_id=dag_id, dag_run_id=dag_run_id, clear_dag_run=clear_dag_run)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
@@ -220,12 +265,12 @@ async def set_dag_run_note(
     dag_id: str, dag_run_id: str, note: str
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
     set_dag_run_note = SetDagRunNote(note=note)
-    response = dag_run_api.set_dag_run_note(dag_id=dag_id, dag_run_id=dag_run_id, set_dag_run_note=set_dag_run_note)
+    response = call_with_token_refresh(dag_run_api.set_dag_run_note, dag_id=dag_id, dag_run_id=dag_run_id, set_dag_run_note=set_dag_run_note)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
 async def get_upstream_dataset_events(
     dag_id: str, dag_run_id: str
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = dag_run_api.get_upstream_dataset_events(dag_id=dag_id, dag_run_id=dag_run_id)
+    response = call_with_token_refresh(dag_run_api.get_upstream_dataset_events, dag_id=dag_id, dag_run_id=dag_run_id)
     return [types.TextContent(type="text", text=str(response.to_dict()))]

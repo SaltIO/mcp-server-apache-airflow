@@ -3,7 +3,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 import mcp.types as types
 from airflow_client.client.api.task_instance_api import TaskInstanceApi
 
-from src.airflow.airflow_client import api_client
+from src.airflow.airflow_client import api_client, call_with_token_refresh
 
 task_instance_api = TaskInstanceApi(api_client)
 
@@ -37,7 +37,7 @@ def get_all_functions() -> list[tuple[Callable, str, str, bool]]:
 async def get_task_instance(
     dag_id: str, task_id: str, dag_run_id: str
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = task_instance_api.get_task_instance(dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id)
+    response = call_with_token_refresh(task_instance_api.get_task_instance, dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
@@ -93,7 +93,7 @@ async def list_task_instances(
     if offset is not None:
         kwargs["offset"] = offset
 
-    response = task_instance_api.get_task_instances(dag_id=dag_id, dag_run_id=dag_run_id, **kwargs)
+    response = call_with_token_refresh(task_instance_api.get_task_instances, dag_id=dag_id, dag_run_id=dag_run_id, **kwargs)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
@@ -104,7 +104,8 @@ async def update_task_instance(
     if state is not None:
         update_request["state"] = state
 
-    response = task_instance_api.patch_task_instance(
+    response = call_with_token_refresh(
+        task_instance_api.patch_task_instance,
         dag_id=dag_id,
         dag_run_id=dag_run_id,
         task_id=task_id,
@@ -117,7 +118,8 @@ async def update_task_instance(
 async def get_log(
     dag_id: str, task_id: str, dag_run_id: str, task_try_number: int
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = task_instance_api.get_log(
+    response = call_with_token_refresh(
+        task_instance_api.get_log,
         dag_id=dag_id,
         dag_run_id=dag_run_id,
         task_id=task_id,
@@ -143,7 +145,8 @@ async def list_task_instance_tries(
     if order_by is not None:
         kwargs["order_by"] = order_by
 
-    response = task_instance_api.get_task_instance_tries(
+    response = call_with_token_refresh(
+        task_instance_api.get_task_instance_tries,
         dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, **kwargs
     )
     return [types.TextContent(type="text", text=str(response.to_dict()))]
