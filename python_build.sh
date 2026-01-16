@@ -109,6 +109,12 @@ build()
         echo "  Cleanup old build dir..."
         rm -rf ${TMP_DIR}
 
+        # Also cleanup source dist folder to avoid stale wheels
+        rm -rf ${SOURCE_DIR}/dist
+        rm -rf ${SOURCE_DIR}/build
+        rm -rf ${SOURCE_DIR}/*.egg-info
+        find ${SOURCE_DIR} -name "*.egg-info" -type d -exec rm -rf {} + 2>/dev/null || true
+
         # Create working dir
         echo "  Setup new build dir..."
         mkdir -p ${TMP_DIR}
