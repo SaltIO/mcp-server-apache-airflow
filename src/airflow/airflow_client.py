@@ -114,11 +114,17 @@ def fetch_jwt_token(airflow_host: str, username: str, password: str) -> str:
         if not token:
             raise ValueError(f"Token not found in response: {token_data}")
 
-        logger.info("Successfully fetched new JWT token from Airflow")
+        logger.info(
+            "Successfully fetched new JWT token from Airflow",
+            extra={"event_type": "AIRFLOW_TOKEN_FETCH_SUCCESS", "auth_url": auth_url}
+        )
         return token
 
     except Exception as e:
-        logger.error(f"Failed to fetch JWT token from {auth_url}: {e}")
+        logger.error(
+            "Failed to fetch JWT token from Airflow",
+            extra={"event_type": "AIRFLOW_TOKEN_FETCH_ERROR", "auth_url": auth_url, "error": str(e)}
+        )
         raise
 
 
@@ -143,10 +149,16 @@ if is_v2_plus:
     if not initial_jwt_token and has_username_password:
         # No JWT provided but username/password available - fetch token
         try:
-            logger.info(f"{AIRFLOW_API_VERSION} API detected with username/password but no token - fetching token...")
+            logger.info(
+                "API detected with username/password but no token - fetching token",
+                extra={"event_type": "AIRFLOW_TOKEN_FETCH_START", "api_version": AIRFLOW_API_VERSION}
+            )
             initial_jwt_token = fetch_jwt_token(airflow_host, AIRFLOW_USERNAME, AIRFLOW_PASSWORD)
         except Exception as e:
-            logger.error(f"Failed to fetch initial token for {AIRFLOW_API_VERSION} API: {e}")
+            logger.error(
+                "Failed to fetch initial token for Airflow API",
+                extra={"event_type": "AIRFLOW_TOKEN_FETCH_ERROR", "api_version": AIRFLOW_API_VERSION, "error": str(e)}
+            )
             raise RuntimeError(f"Cannot proceed without token for {AIRFLOW_API_VERSION} API") from e
 
     if initial_jwt_token:
@@ -197,7 +209,10 @@ def refresh_token_if_needed():
 
     if not has_username_password:
         # No credentials to refresh with
-        logger.warning("Token expired but no username/password available for refresh")
+        logger.warning(
+            "Token expired but no username/password available for refresh",
+            extra={"event_type": "AIRFLOW_TOKEN_REFRESH_NO_CREDS"}
+        )
         return False
 
     try:
@@ -205,10 +220,13 @@ def refresh_token_if_needed():
         configuration.update_token(new_token)
         # Also update the api_client's configuration
         api_client.configuration = configuration
-        logger.info("Token refreshed successfully")
+        logger.info("Token refreshed successfully", extra={"event_type": "AIRFLOW_TOKEN_REFRESH_SUCCESS"})
         return True
     except Exception as e:
-        logger.error(f"Failed to refresh token: {e}")
+        logger.error(
+            "Failed to refresh token",
+            extra={"event_type": "AIRFLOW_TOKEN_REFRESH_ERROR", "error": str(e)}
+        )
         return False
 
 
@@ -228,26 +246,86 @@ def call_with_token_refresh(api_call_func, *args, **kwargs):
     Raises:
         The original exception if retry after refresh fails or refresh is not possible
     """
+    func_name = getattr(api_call_func, '__name__', str(api_call_func))
+    logger.debug(
+        "Calling Airflow API",
+        extra={
+            "event_type": "AIRFLOW_API_CALL_START",
+            "function": func_name,
+            "kwargs": {k: v for k, v in kwargs.items() if k not in ('body', 'password')},
+        }
+    )
     try:
-        return api_call_func(*args, **kwargs)
+        result = api_call_func(*args, **kwargs)
+        logger.debug(
+            "Airflow API call succeeded",
+            extra={
+                "event_type": "AIRFLOW_API_CALL_SUCCESS",
+                "function": func_name,
+            }
+        )
+        return result
+    except json.JSONDecodeError as e:
+        # Empty or non-JSON response from Airflow
+        logger.error(
+            "Airflow API returned empty or non-JSON response",
+            extra={
+                "event_type": "AIRFLOW_API_EMPTY_RESPONSE",
+                "function": func_name,
+                "error": str(e),
+                "api_host": api_host,
+            }
+        )
+        raise RuntimeError(
+            f"Airflow API returned empty or invalid JSON response. "
+            f"Check if Airflow is reachable at {api_host} and authentication is valid."
+        ) from e
     except Exception as e:
         # Check if it's a 401 Unauthorized error
         error_code = getattr(e, 'status', None) or getattr(e, 'status_code', None)
+        error_body = getattr(e, 'body', None)
+
+        logger.debug(
+            "Airflow API call failed",
+            extra={
+                "event_type": "AIRFLOW_API_CALL_ERROR",
+                "function": func_name,
+                "error_code": error_code,
+                "error": str(e),
+                "error_body": str(error_body)[:500] if error_body else None,
+            }
+        )
+
         if error_code == 401:
             if is_v2_plus and has_username_password:
                 # v2+ API with username/password available - try to refresh
-                logger.warning(f"Received 401 Unauthorized, attempting to refresh token...")
+                logger.warning(
+                    "Received 401 Unauthorized, attempting to refresh token",
+                    extra={"event_type": "AIRFLOW_TOKEN_REFRESH_ATTEMPT"}
+                )
                 if refresh_token_if_needed():
                     # Retry the call with the new token
-                    logger.info("Retrying API call with refreshed token...")
+                    logger.info(
+                        "Retrying API call with refreshed token",
+                        extra={"event_type": "AIRFLOW_API_RETRY", "function": func_name}
+                    )
                     return api_call_func(*args, **kwargs)
                 else:
-                    logger.error("Failed to refresh token, re-raising original exception")
+                    logger.error(
+                        "Failed to refresh token, re-raising original exception",
+                        extra={"event_type": "AIRFLOW_TOKEN_REFRESH_FAILED"}
+                    )
             else:
                 # v1 API or no refresh capability - just log and re-raise
                 if is_v2_plus:
-                    logger.error("401 Unauthorized but cannot refresh token (no username/password available)")
+                    logger.error(
+                        "401 Unauthorized but cannot refresh token (no username/password available)",
+                        extra={"event_type": "AIRFLOW_AUTH_NO_REFRESH"}
+                    )
                 else:
-                    logger.error("401 Unauthorized on v1 API")
+                    logger.error(
+                        "401 Unauthorized on v1 API",
+                        extra={"event_type": "AIRFLOW_AUTH_V1_FAILED"}
+                    )
         # Re-raise the original exception
         raise
