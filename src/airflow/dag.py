@@ -46,6 +46,22 @@ async def get_dags(
     paused: Optional[bool] = None,
     dag_id_pattern: Optional[str] = None,
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
+    """List DAGs from Airflow.
+
+    Args:
+        limit: Maximum number of DAGs to return. Default is 100.
+        offset: Number of DAGs to skip before returning results.
+        order_by: Field name to order results by. Prefix with '-' for descending order.
+        tags: Filter DAGs by tags. Example: ["production", "etl"]
+        only_active: If True (default), only return active DAGs.
+        paused: Filter by paused state. None returns all, True returns only paused, False returns only unpaused.
+        dag_id_pattern: Filter DAGs by ID substring match. Use simple text, NOT regex.
+            Example: "elt" matches "elt_transform", "my_elt_dag", etc.
+            Do NOT use regex patterns like ".*elt.*" - use just "elt" instead.
+
+    Returns:
+        List of DAGs matching the criteria with their details and UI URLs.
+    """
     # Build parameters dictionary
     kwargs: Dict[str, Any] = {}
     if limit is not None:
@@ -91,6 +107,19 @@ async def get_dag(dag_id: str) -> List[Union[types.TextContent, types.ImageConte
 async def get_dag_details(
     dag_id: str, fields: Optional[List[str]] = None
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
+    """Get a simplified representation of a DAG.
+
+    Args:
+        dag_id: The ID of the DAG to retrieve details for.
+        fields: A list of field names to include in the response. If not provided, all fields are returned. Example: ["dag_id", "is_paused", "schedule_interval"]
+
+    Returns:
+        DAG details as text content.
+    """
+    # Defensive handling: convert string to list if LLM passes wrong type
+    if isinstance(fields, str):
+        fields = [fields]
+
     # Build parameters dictionary
     kwargs: Dict[str, Any] = {}
     if fields is not None:
