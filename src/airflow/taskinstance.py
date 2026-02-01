@@ -1,7 +1,11 @@
+"""
+Airflow 3.x Task Instance API.
+"""
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import mcp.types as types
 from airflow_client.client.api.task_instance_api import TaskInstanceApi
+from airflow_client.client.models import PatchTaskInstanceBody
 
 from src.airflow.airflow_client import api_client, call_with_token_refresh
 
@@ -37,15 +41,20 @@ def get_all_functions() -> list[tuple[Callable, str, str, bool]]:
 async def get_task_instance(
     dag_id: str, task_id: str, dag_run_id: str
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = call_with_token_refresh(task_instance_api.get_task_instance, dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id)
+    response = call_with_token_refresh(
+        task_instance_api.get_task_instance,
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        task_id=task_id,
+    )
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
 async def list_task_instances(
     dag_id: str,
     dag_run_id: str,
-    execution_date_gte: Optional[str] = None,
-    execution_date_lte: Optional[str] = None,
+    logical_date_gte: Optional[str] = None,
+    logical_date_lte: Optional[str] = None,
     start_date_gte: Optional[str] = None,
     start_date_lte: Optional[str] = None,
     end_date_gte: Optional[str] = None,
@@ -60,12 +69,11 @@ async def list_task_instances(
     limit: Optional[int] = None,
     offset: Optional[int] = None,
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    # Build parameters dictionary
     kwargs: Dict[str, Any] = {}
-    if execution_date_gte is not None:
-        kwargs["execution_date_gte"] = execution_date_gte
-    if execution_date_lte is not None:
-        kwargs["execution_date_lte"] = execution_date_lte
+    if logical_date_gte is not None:
+        kwargs["logical_date_gte"] = logical_date_gte
+    if logical_date_lte is not None:
+        kwargs["logical_date_lte"] = logical_date_lte
     if start_date_gte is not None:
         kwargs["start_date_gte"] = start_date_gte
     if start_date_lte is not None:
@@ -93,37 +101,49 @@ async def list_task_instances(
     if offset is not None:
         kwargs["offset"] = offset
 
-    response = call_with_token_refresh(task_instance_api.get_task_instances, dag_id=dag_id, dag_run_id=dag_run_id, **kwargs)
+    response = call_with_token_refresh(
+        task_instance_api.get_task_instances,
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        **kwargs,
+    )
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
 async def update_task_instance(
-    dag_id: str, dag_run_id: str, task_id: str, state: Optional[str] = None
+    dag_id: str, dag_run_id: str, task_id: str, state: Optional[str] = None, note: Optional[str] = None
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    update_request = {}
-    if state is not None:
-        update_request["state"] = state
+    update_mask = []
+    update_kwargs = {}
 
+    if state is not None:
+        update_kwargs["state"] = state
+        update_mask.append("state")
+    if note is not None:
+        update_kwargs["note"] = note
+        update_mask.append("note")
+
+    patch_body = PatchTaskInstanceBody(**update_kwargs)
     response = call_with_token_refresh(
         task_instance_api.patch_task_instance,
         dag_id=dag_id,
         dag_run_id=dag_run_id,
         task_id=task_id,
-        update_mask=list(update_request.keys()),
-        task_instance_request=update_request,
+        patch_task_instance_body=patch_body,
+        update_mask=update_mask,
     )
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
 async def get_log(
-    dag_id: str, task_id: str, dag_run_id: str, task_try_number: int
+    dag_id: str, task_id: str, dag_run_id: str, try_number: int
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
     response = call_with_token_refresh(
         task_instance_api.get_log,
         dag_id=dag_id,
         dag_run_id=dag_run_id,
         task_id=task_id,
-        task_try_number=task_try_number,
+        try_number=try_number,
     )
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
@@ -132,21 +152,11 @@ async def list_task_instance_tries(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
-    limit: Optional[int] = None,
-    offset: Optional[int] = None,
-    order_by: Optional[str] = None,
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    # Build parameters dictionary
-    kwargs: Dict[str, Any] = {}
-    if limit is not None:
-        kwargs["limit"] = limit
-    if offset is not None:
-        kwargs["offset"] = offset
-    if order_by is not None:
-        kwargs["order_by"] = order_by
-
     response = call_with_token_refresh(
         task_instance_api.get_task_instance_tries,
-        dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, **kwargs
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        task_id=task_id,
     )
     return [types.TextContent(type="text", text=str(response.to_dict()))]

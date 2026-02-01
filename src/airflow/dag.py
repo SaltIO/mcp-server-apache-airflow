@@ -1,15 +1,20 @@
+"""
+Airflow 3.x DAG API.
+"""
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import mcp.types as types
 from airflow_client.client.api.dag_api import DAGApi
-from airflow_client.client.model.clear_task_instances import ClearTaskInstances
-from airflow_client.client.model.dag import DAG
-from airflow_client.client.model.update_task_instances_state import UpdateTaskInstancesState
+from airflow_client.client.api.task_api import TaskApi
+from airflow_client.client.api.dag_source_api import DagSourceApi
+from airflow_client.client.models import DAGPatchBody
 
 from src.airflow.airflow_client import api_client, call_with_token_refresh
 from src.envs import AIRFLOW_HOST
 
 dag_api = DAGApi(api_client)
+task_api = TaskApi(api_client)
+dag_source_api = DagSourceApi(api_client)
 
 
 def get_all_functions() -> list[tuple[Callable, str, str, bool]]:
@@ -27,9 +32,6 @@ def get_all_functions() -> list[tuple[Callable, str, str, bool]]:
         (patch_dag, "patch_dag", "Update a DAG", False),
         (patch_dags, "patch_dags", "Update multiple DAGs", False),
         (delete_dag, "delete_dag", "Delete a DAG", False),
-        (clear_task_instances, "clear_task_instances", "Clear a set of task instances", False),
-        (set_task_instances_state, "set_task_instances_state", "Set a state of task instances", False),
-        (reparse_dag_file, "reparse_dag_file", "Request re-parsing of a DAG file", False),
     ]
 
 
@@ -42,7 +44,6 @@ async def get_dags(
     offset: Optional[int] = None,
     order_by: Optional[str] = None,
     tags: Optional[List[str]] = None,
-    only_active: Optional[bool] = None,
     paused: Optional[bool] = None,
     dag_id_pattern: Optional[str] = None,
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
@@ -53,7 +54,6 @@ async def get_dags(
         offset: Number of DAGs to skip before returning results.
         order_by: Field name to order results by. Prefix with '-' for descending order.
         tags: Filter DAGs by tags. Example: ["production", "etl"]
-        only_active: If True (default), only return active DAGs.
         paused: Filter by paused state. None returns all, True returns only paused, False returns only unpaused.
         dag_id_pattern: Filter DAGs by ID substring match. Use simple text, NOT regex.
             Example: "elt" matches "elt_transform", "my_elt_dag", etc.
@@ -62,7 +62,6 @@ async def get_dags(
     Returns:
         List of DAGs matching the criteria with their details and UI URLs.
     """
-    # Build parameters dictionary
     kwargs: Dict[str, Any] = {}
     if limit is not None:
         kwargs["limit"] = limit
@@ -72,17 +71,12 @@ async def get_dags(
         kwargs["order_by"] = order_by
     if tags is not None:
         kwargs["tags"] = tags
-    if only_active is not None:
-        kwargs["only_active"] = only_active
     if paused is not None:
         kwargs["paused"] = paused
     if dag_id_pattern is not None:
         kwargs["dag_id_pattern"] = dag_id_pattern
 
-    # Use the client to fetch DAGs
     response = call_with_token_refresh(dag_api.get_dags, **kwargs)
-
-    # Convert response to dictionary for easier manipulation
     response_dict = response.to_dict()
 
     # Add UI links to each DAG
@@ -94,116 +88,87 @@ async def get_dags(
 
 async def get_dag(dag_id: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
     response = call_with_token_refresh(dag_api.get_dag, dag_id=dag_id)
-
-    # Convert response to dictionary for easier manipulation
     response_dict = response.to_dict()
-
-    # Add UI link to DAG
     response_dict["ui_url"] = get_dag_url(dag_id)
-
     return [types.TextContent(type="text", text=str(response_dict))]
 
 
 async def get_dag_details(
-    dag_id: str, fields: Optional[List[str]] = None
+    dag_id: str,
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    """Get a simplified representation of a DAG.
-
-    Args:
-        dag_id: The ID of the DAG to retrieve details for.
-        fields: A list of field names to include in the response. If not provided, all fields are returned. Example: ["dag_id", "is_paused", "schedule_interval"]
-
-    Returns:
-        DAG details as text content.
-    """
-    # Defensive handling: convert string to list if LLM passes wrong type
-    if isinstance(fields, str):
-        fields = [fields]
-
-    # Build parameters dictionary
-    kwargs: Dict[str, Any] = {}
-    if fields is not None:
-        kwargs["fields"] = fields
-
-    response = call_with_token_refresh(dag_api.get_dag_details, dag_id=dag_id, **kwargs)
+    """Get a simplified representation of a DAG."""
+    response = call_with_token_refresh(dag_api.get_dag_details, dag_id=dag_id)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
-async def get_dag_source(file_token: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = call_with_token_refresh(dag_api.get_dag_source, file_token=file_token)
+async def get_dag_source(dag_id: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
+    """Get DAG source code."""
+    response = call_with_token_refresh(dag_source_api.get_dag_source, dag_id=dag_id)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
 async def pause_dag(dag_id: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    dag = DAG(is_paused=True)
-    response = call_with_token_refresh(dag_api.patch_dag, dag_id=dag_id, dag=dag, update_mask=["is_paused"])
+    patch_body = DAGPatchBody(is_paused=True)
+    response = call_with_token_refresh(dag_api.patch_dag, dag_id=dag_id, dag_patch_body=patch_body, update_mask=["is_paused"])
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
 async def unpause_dag(dag_id: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    dag = DAG(is_paused=False)
-    response = call_with_token_refresh(dag_api.patch_dag, dag_id=dag_id, dag=dag, update_mask=["is_paused"])
+    patch_body = DAGPatchBody(is_paused=False)
+    response = call_with_token_refresh(dag_api.patch_dag, dag_id=dag_id, dag_patch_body=patch_body, update_mask=["is_paused"])
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
 async def get_dag_tasks(dag_id: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = call_with_token_refresh(dag_api.get_tasks, dag_id=dag_id)
+    response = call_with_token_refresh(task_api.get_tasks, dag_id=dag_id)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
 async def patch_dag(
-    dag_id: str, is_paused: Optional[bool] = None, tags: Optional[List[str]] = None
+    dag_id: str, is_paused: Optional[bool] = None
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    update_request = {}
     update_mask = []
+    patch_body_kwargs = {}
 
     if is_paused is not None:
-        update_request["is_paused"] = is_paused
+        patch_body_kwargs["is_paused"] = is_paused
         update_mask.append("is_paused")
-    if tags is not None:
-        update_request["tags"] = tags
-        update_mask.append("tags")
 
-    dag = DAG(**update_request)
-
-    response = call_with_token_refresh(dag_api.patch_dag, dag_id=dag_id, dag=dag, update_mask=update_mask)
+    patch_body = DAGPatchBody(**patch_body_kwargs)
+    response = call_with_token_refresh(dag_api.patch_dag, dag_id=dag_id, dag_patch_body=patch_body, update_mask=update_mask)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
 async def patch_dags(
     dag_id_pattern: Optional[str] = None,
     is_paused: Optional[bool] = None,
-    tags: Optional[List[str]] = None,
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    update_request = {}
     update_mask = []
+    patch_body_kwargs = {}
 
     if is_paused is not None:
-        update_request["is_paused"] = is_paused
+        patch_body_kwargs["is_paused"] = is_paused
         update_mask.append("is_paused")
-    if tags is not None:
-        update_request["tags"] = tags
-        update_mask.append("tags")
 
-    dag = DAG(**update_request)
+    patch_body = DAGPatchBody(**patch_body_kwargs)
 
     kwargs = {}
     if dag_id_pattern is not None:
         kwargs["dag_id_pattern"] = dag_id_pattern
 
-    response = call_with_token_refresh(dag_api.patch_dags, dag_id_pattern=dag_id_pattern, dag=dag, update_mask=update_mask, **kwargs)
+    response = call_with_token_refresh(dag_api.patch_dags, dag_patch_body=patch_body, update_mask=update_mask, **kwargs)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
 async def delete_dag(dag_id: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = call_with_token_refresh(dag_api.delete_dag, dag_id=dag_id)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    call_with_token_refresh(dag_api.delete_dag, dag_id=dag_id)
+    return [types.TextContent(type="text", text=f"DAG '{dag_id}' deleted successfully.")]
 
 
 async def get_task(
     dag_id: str, task_id: str
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = call_with_token_refresh(dag_api.get_task, dag_id=dag_id, task_id=task_id)
+    response = call_with_token_refresh(task_api.get_task, dag_id=dag_id, task_id=task_id)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
@@ -214,93 +179,5 @@ async def get_tasks(
     if order_by is not None:
         kwargs["order_by"] = order_by
 
-    response = call_with_token_refresh(dag_api.get_tasks, dag_id=dag_id, **kwargs)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
-
-
-async def clear_task_instances(
-    dag_id: str,
-    task_ids: Optional[List[str]] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-    include_subdags: Optional[bool] = None,
-    include_parentdag: Optional[bool] = None,
-    include_upstream: Optional[bool] = None,
-    include_downstream: Optional[bool] = None,
-    include_future: Optional[bool] = None,
-    include_past: Optional[bool] = None,
-    dry_run: Optional[bool] = None,
-    reset_dag_runs: Optional[bool] = None,
-) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    clear_request = {}
-    if task_ids is not None:
-        clear_request["task_ids"] = task_ids
-    if start_date is not None:
-        clear_request["start_date"] = start_date
-    if end_date is not None:
-        clear_request["end_date"] = end_date
-    if include_subdags is not None:
-        clear_request["include_subdags"] = include_subdags
-    if include_parentdag is not None:
-        clear_request["include_parentdag"] = include_parentdag
-    if include_upstream is not None:
-        clear_request["include_upstream"] = include_upstream
-    if include_downstream is not None:
-        clear_request["include_downstream"] = include_downstream
-    if include_future is not None:
-        clear_request["include_future"] = include_future
-    if include_past is not None:
-        clear_request["include_past"] = include_past
-    if dry_run is not None:
-        clear_request["dry_run"] = dry_run
-    if reset_dag_runs is not None:
-        clear_request["reset_dag_runs"] = reset_dag_runs
-
-    clear_task_instances = ClearTaskInstances(**clear_request)
-
-    response = call_with_token_refresh(dag_api.post_clear_task_instances, dag_id=dag_id, clear_task_instances=clear_task_instances)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
-
-
-async def set_task_instances_state(
-    dag_id: str,
-    state: str,
-    task_ids: Optional[List[str]] = None,
-    execution_date: Optional[str] = None,
-    include_upstream: Optional[bool] = None,
-    include_downstream: Optional[bool] = None,
-    include_future: Optional[bool] = None,
-    include_past: Optional[bool] = None,
-    dry_run: Optional[bool] = None,
-) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    state_request = {"state": state}
-    if task_ids is not None:
-        state_request["task_ids"] = task_ids
-    if execution_date is not None:
-        state_request["execution_date"] = execution_date
-    if include_upstream is not None:
-        state_request["include_upstream"] = include_upstream
-    if include_downstream is not None:
-        state_request["include_downstream"] = include_downstream
-    if include_future is not None:
-        state_request["include_future"] = include_future
-    if include_past is not None:
-        state_request["include_past"] = include_past
-    if dry_run is not None:
-        state_request["dry_run"] = dry_run
-
-    update_task_instances_state = UpdateTaskInstancesState(**state_request)
-
-    response = call_with_token_refresh(
-        dag_api.post_set_task_instances_state,
-        dag_id=dag_id,
-        update_task_instances_state=update_task_instances_state,
-    )
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
-
-
-async def reparse_dag_file(
-    file_token: str,
-) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = call_with_token_refresh(dag_api.reparse_dag_file, file_token=file_token)
+    response = call_with_token_refresh(task_api.get_tasks, dag_id=dag_id, **kwargs)
     return [types.TextContent(type="text", text=str(response.to_dict()))]

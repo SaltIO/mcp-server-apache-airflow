@@ -34,40 +34,24 @@ def _is_v2_or_greater(api_version: str) -> bool:
 
 
 class JWTConfiguration(Configuration):
-    """Configuration subclass that supports JWT token authentication."""
+    """Configuration subclass that supports JWT token authentication.
+
+    For Airflow 3.x client, uses the standard access_token attribute
+    which triggers HTTPBearer and OAuth2PasswordBearer auth settings.
+    """
 
     def __init__(self, jwt_token=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._jwt_token = jwt_token
+        # Set access_token for Airflow 3.x client compatibility
+        if jwt_token:
+            self.access_token = jwt_token
 
     def update_token(self, new_token: str):
         """Update the JWT token dynamically."""
         self._jwt_token = new_token
-        # Update the api_key to reflect the new token
-        self.api_key = {"Authorization": f"Bearer {new_token}"}
-        self.api_key_prefix = {"Authorization": ""}
-
-    def auth_settings(self):
-        """Override auth_settings to support JWT token authentication."""
-        auth = {}
-        if self._jwt_token:
-            # Use 'Basic' as the key (expected by endpoint OpenAPI spec) but provide Bearer token
-            # The endpoint's OpenAPI spec lists 'Basic' and 'Kerberos', but API requires Bearer token
-            auth['Basic'] = {
-                'type': 'bearer',
-                'in': 'header',
-                'key': 'Authorization',
-                'value': f"Bearer {self._jwt_token}"
-            }
-        elif self.username is not None and self.password is not None:
-            # Fallback to Basic auth if no JWT token
-            auth['Basic'] = {
-                'type': 'basic',
-                'in': 'header',
-                'key': 'Authorization',
-                'value': self.get_basic_auth_token()
-            }
-        return auth
+        # Update access_token for Airflow 3.x client
+        self.access_token = new_token
 
 
 def fetch_jwt_token(airflow_host: str, username: str, password: str) -> str:
@@ -129,10 +113,10 @@ def fetch_jwt_token(airflow_host: str, username: str, password: str) -> str:
 
 
 # Create a configuration and API client
-# The fix from PR: use string concatenation instead of urljoin to avoid path truncation
-# This ensures the full path is preserved when AIRFLOW_HOST includes a base path like /airflow
+# For Airflow 3.x client: The client appends /api/v2 internally, so we only need the base URL
+# For Airflow 2.x client: The client expected the full /api/v1 path to be provided
+# Since we're now on Airflow 3.x client, just use the base host
 airflow_host = AIRFLOW_HOST.rstrip("/")
-api_host = f"{airflow_host}/api/{AIRFLOW_API_VERSION}"
 
 is_v2_plus = _is_v2_or_greater(AIRFLOW_API_VERSION)
 initial_jwt_token = AIRFLOW_JWT_TOKEN
@@ -164,7 +148,7 @@ if is_v2_plus:
     if initial_jwt_token:
         configuration = JWTConfiguration(
             jwt_token=initial_jwt_token,
-            host=api_host,
+            host=airflow_host,
         )
     else:
         # No JWT and no username/password - cannot authenticate for v2+
@@ -175,16 +159,16 @@ else:
     if initial_jwt_token:
         configuration = JWTConfiguration(
             jwt_token=initial_jwt_token,
-            host=api_host,
+            host=airflow_host,
         )
     elif has_username_password:
         configuration = Configuration(
-            host=api_host,
+            host=airflow_host,
             username=AIRFLOW_USERNAME,
             password=AIRFLOW_PASSWORD,
         )
     else:
-        configuration = Configuration(host=api_host)
+        configuration = Configuration(host=airflow_host)
 
 # Create API client
 api_client = ApiClient(configuration)
@@ -273,12 +257,12 @@ def call_with_token_refresh(api_call_func, *args, **kwargs):
                 "event_type": "AIRFLOW_API_EMPTY_RESPONSE",
                 "function": func_name,
                 "error": str(e),
-                "api_host": api_host,
+                "airflow_host": airflow_host,
             }
         )
         raise RuntimeError(
             f"Airflow API returned empty or invalid JSON response. "
-            f"Check if Airflow is reachable at {api_host} and authentication is valid."
+            f"Check if Airflow is reachable at {airflow_host} and authentication is valid."
         ) from e
     except Exception as e:
         # Check if it's a 401 Unauthorized error

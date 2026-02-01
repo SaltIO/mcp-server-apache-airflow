@@ -1,7 +1,11 @@
+"""
+Airflow 3.x Connection API.
+"""
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import mcp.types as types
 from airflow_client.client.api.connection_api import ConnectionApi
+from airflow_client.client.models import ConnectionBody
 
 from src.airflow.airflow_client import api_client, call_with_token_refresh
 
@@ -25,7 +29,6 @@ async def list_connections(
     offset: Optional[int] = None,
     order_by: Optional[str] = None,
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    # Build parameters dictionary
     kwargs: Dict[str, Any] = {}
     if limit is not None:
         kwargs["limit"] = limit
@@ -48,24 +51,25 @@ async def create_connection(
     schema: Optional[str] = None,
     extra: Optional[str] = None,
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    connection_request = {
+    conn_kwargs = {
         "connection_id": conn_id,
         "conn_type": conn_type,
     }
     if host is not None:
-        connection_request["host"] = host
+        conn_kwargs["host"] = host
     if port is not None:
-        connection_request["port"] = port
+        conn_kwargs["port"] = port
     if login is not None:
-        connection_request["login"] = login
+        conn_kwargs["login"] = login
     if password is not None:
-        connection_request["password"] = password
+        conn_kwargs["password"] = password
     if schema is not None:
-        connection_request["schema"] = schema
+        conn_kwargs["schema"] = schema
     if extra is not None:
-        connection_request["extra"] = extra
+        conn_kwargs["extra"] = extra
 
-    response = call_with_token_refresh(connection_api.post_connection, connection_request=connection_request)
+    connection_body = ConnectionBody(**conn_kwargs)
+    response = call_with_token_refresh(connection_api.post_connection, connection_body=connection_body)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
@@ -84,32 +88,44 @@ async def update_connection(
     schema: Optional[str] = None,
     extra: Optional[str] = None,
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    update_request = {}
-    if conn_type is not None:
-        update_request["conn_type"] = conn_type
-    if host is not None:
-        update_request["host"] = host
-    if port is not None:
-        update_request["port"] = port
-    if login is not None:
-        update_request["login"] = login
-    if password is not None:
-        update_request["password"] = password
-    if schema is not None:
-        update_request["schema"] = schema
-    if extra is not None:
-        update_request["extra"] = extra
+    update_mask = []
+    update_kwargs = {}
 
+    if conn_type is not None:
+        update_kwargs["conn_type"] = conn_type
+        update_mask.append("conn_type")
+    if host is not None:
+        update_kwargs["host"] = host
+        update_mask.append("host")
+    if port is not None:
+        update_kwargs["port"] = port
+        update_mask.append("port")
+    if login is not None:
+        update_kwargs["login"] = login
+        update_mask.append("login")
+    if password is not None:
+        update_kwargs["password"] = password
+        update_mask.append("password")
+    if schema is not None:
+        update_kwargs["schema"] = schema
+        update_mask.append("schema")
+    if extra is not None:
+        update_kwargs["extra"] = extra
+        update_mask.append("extra")
+
+    connection_body = ConnectionBody(**update_kwargs)
     response = call_with_token_refresh(
         connection_api.patch_connection,
-        connection_id=conn_id, update_mask=list(update_request.keys()), connection_request=update_request
+        connection_id=conn_id,
+        connection_body=connection_body,
+        update_mask=update_mask,
     )
     return [types.TextContent(type="text", text=str(response.to_dict()))]
 
 
 async def delete_connection(conn_id: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    response = call_with_token_refresh(connection_api.delete_connection, connection_id=conn_id)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    call_with_token_refresh(connection_api.delete_connection, connection_id=conn_id)
+    return [types.TextContent(type="text", text=f"Connection '{conn_id}' deleted successfully.")]
 
 
 async def test_connection(
@@ -121,21 +137,22 @@ async def test_connection(
     schema: Optional[str] = None,
     extra: Optional[str] = None,
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
-    connection_request = {
+    conn_kwargs = {
         "conn_type": conn_type,
     }
     if host is not None:
-        connection_request["host"] = host
+        conn_kwargs["host"] = host
     if port is not None:
-        connection_request["port"] = port
+        conn_kwargs["port"] = port
     if login is not None:
-        connection_request["login"] = login
+        conn_kwargs["login"] = login
     if password is not None:
-        connection_request["password"] = password
+        conn_kwargs["password"] = password
     if schema is not None:
-        connection_request["schema"] = schema
+        conn_kwargs["schema"] = schema
     if extra is not None:
-        connection_request["extra"] = extra
+        conn_kwargs["extra"] = extra
 
-    response = call_with_token_refresh(connection_api.test_connection, connection_request=connection_request)
+    connection_body = ConnectionBody(**conn_kwargs)
+    response = call_with_token_refresh(connection_api.test_connection, connection_body=connection_body)
     return [types.TextContent(type="text", text=str(response.to_dict()))]
