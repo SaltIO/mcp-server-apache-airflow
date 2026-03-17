@@ -37,7 +37,7 @@ def get_all_functions() -> list[tuple[Callable, str, str, bool]]:
 
 
 def get_dag_url(dag_id: str) -> str:
-    return f"{AIRFLOW_HOST}/dags/{dag_id}/grid"
+    return f"{AIRFLOW_HOST}/dags/{dag_id}"
 
 
 async def get_dags(

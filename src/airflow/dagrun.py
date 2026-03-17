@@ -33,7 +33,7 @@ def get_all_functions() -> list[tuple[Callable, str, str, bool]]:
 
 
 def get_dag_run_url(dag_id: str, dag_run_id: str) -> str:
-    return f"{AIRFLOW_HOST}/dags/{dag_id}/grid?dag_run_id={dag_run_id}"
+    return f"{AIRFLOW_HOST}/dags/{dag_id}?dag_run_id={dag_run_id}"
 
 
 def _parse_datetime(value: Any) -> Optional[datetime]:
