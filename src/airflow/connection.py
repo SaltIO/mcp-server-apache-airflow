@@ -8,6 +8,7 @@ from airflow_client.client.api.connection_api import ConnectionApi
 from airflow_client.client.models import ConnectionBody
 
 from src.airflow.airflow_client import api_client, call_with_token_refresh
+from src.airflow.serialization import to_json
 
 connection_api = ConnectionApi(api_client)
 
@@ -38,7 +39,7 @@ async def list_connections(
         kwargs["order_by"] = order_by
 
     response = call_with_token_refresh(connection_api.get_connections, **kwargs)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def create_connection(
@@ -70,12 +71,12 @@ async def create_connection(
 
     connection_body = ConnectionBody(**conn_kwargs)
     response = call_with_token_refresh(connection_api.post_connection, connection_body=connection_body)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def get_connection(conn_id: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
     response = call_with_token_refresh(connection_api.get_connection, connection_id=conn_id)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def update_connection(
@@ -120,7 +121,7 @@ async def update_connection(
         connection_body=connection_body,
         update_mask=update_mask,
     )
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def delete_connection(conn_id: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
@@ -155,4 +156,4 @@ async def test_connection(
 
     connection_body = ConnectionBody(**conn_kwargs)
     response = call_with_token_refresh(connection_api.test_connection, connection_body=connection_body)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]

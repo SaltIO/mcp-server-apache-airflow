@@ -8,6 +8,7 @@ from airflow_client.client.api.pool_api import PoolApi
 from airflow_client.client.models import PoolBody, PoolPatchBody
 
 from src.airflow.airflow_client import api_client, call_with_token_refresh
+from src.airflow.serialization import to_json
 
 pool_api = PoolApi(api_client)
 
@@ -38,7 +39,7 @@ async def get_pools(
         kwargs["order_by"] = order_by
 
     response = call_with_token_refresh(pool_api.get_pools, **kwargs)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def get_pool(
@@ -46,7 +47,7 @@ async def get_pool(
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
     """Get a pool by name."""
     response = call_with_token_refresh(pool_api.get_pool, pool_name=pool_name)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def delete_pool(
@@ -75,7 +76,7 @@ async def post_pool(
 
     pool_body = PoolBody(**pool_kwargs)
     response = call_with_token_refresh(pool_api.post_pool, pool_body=pool_body)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def patch_pool(
@@ -105,4 +106,4 @@ async def patch_pool(
         pool_patch_body=patch_body,
         update_mask=update_mask,
     )
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]

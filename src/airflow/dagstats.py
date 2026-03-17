@@ -4,6 +4,7 @@ import mcp.types as types
 from airflow_client.client.api.dag_stats_api import DagStatsApi
 
 from src.airflow.airflow_client import api_client, call_with_token_refresh
+from src.airflow.serialization import to_json
 
 dag_stats_api = DagStatsApi(api_client)
 
@@ -24,4 +25,4 @@ async def get_dag_stats(
         kwargs["dag_ids"] = dag_ids
 
     response = call_with_token_refresh(dag_stats_api.get_dag_stats, **kwargs)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]

@@ -11,6 +11,7 @@ from airflow_client.client.models import DAGPatchBody
 
 from src.airflow.airflow_client import api_client, call_with_token_refresh
 from src.envs import AIRFLOW_HOST
+from src.airflow.serialization import to_json
 
 dag_api = DAGApi(api_client)
 task_api = TaskApi(api_client)
@@ -83,14 +84,14 @@ async def get_dags(
     for dag in response_dict.get("dags", []):
         dag["ui_url"] = get_dag_url(dag["dag_id"])
 
-    return [types.TextContent(type="text", text=str(response_dict))]
+    return [types.TextContent(type="text", text=to_json(response_dict))]
 
 
 async def get_dag(dag_id: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
     response = call_with_token_refresh(dag_api.get_dag, dag_id=dag_id)
     response_dict = response.to_dict()
     response_dict["ui_url"] = get_dag_url(dag_id)
-    return [types.TextContent(type="text", text=str(response_dict))]
+    return [types.TextContent(type="text", text=to_json(response_dict))]
 
 
 async def get_dag_details(
@@ -98,30 +99,30 @@ async def get_dag_details(
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
     """Get a simplified representation of a DAG."""
     response = call_with_token_refresh(dag_api.get_dag_details, dag_id=dag_id)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def get_dag_source(dag_id: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
     """Get DAG source code."""
     response = call_with_token_refresh(dag_source_api.get_dag_source, dag_id=dag_id)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def pause_dag(dag_id: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
     patch_body = DAGPatchBody(is_paused=True)
     response = call_with_token_refresh(dag_api.patch_dag, dag_id=dag_id, dag_patch_body=patch_body, update_mask=["is_paused"])
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def unpause_dag(dag_id: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
     patch_body = DAGPatchBody(is_paused=False)
     response = call_with_token_refresh(dag_api.patch_dag, dag_id=dag_id, dag_patch_body=patch_body, update_mask=["is_paused"])
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def get_dag_tasks(dag_id: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
     response = call_with_token_refresh(task_api.get_tasks, dag_id=dag_id)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def patch_dag(
@@ -136,7 +137,7 @@ async def patch_dag(
 
     patch_body = DAGPatchBody(**patch_body_kwargs)
     response = call_with_token_refresh(dag_api.patch_dag, dag_id=dag_id, dag_patch_body=patch_body, update_mask=update_mask)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def patch_dags(
@@ -157,7 +158,7 @@ async def patch_dags(
         kwargs["dag_id_pattern"] = dag_id_pattern
 
     response = call_with_token_refresh(dag_api.patch_dags, dag_patch_body=patch_body, update_mask=update_mask, **kwargs)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def delete_dag(dag_id: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
@@ -169,7 +170,7 @@ async def get_task(
     dag_id: str, task_id: str
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
     response = call_with_token_refresh(task_api.get_task, dag_id=dag_id, task_id=task_id)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def get_tasks(
@@ -180,4 +181,4 @@ async def get_tasks(
         kwargs["order_by"] = order_by
 
     response = call_with_token_refresh(task_api.get_tasks, dag_id=dag_id, **kwargs)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]

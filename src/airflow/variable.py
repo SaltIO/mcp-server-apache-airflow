@@ -8,6 +8,7 @@ from airflow_client.client.api.variable_api import VariableApi
 from airflow_client.client.models import VariableBody
 
 from src.airflow.airflow_client import api_client, call_with_token_refresh
+from src.airflow.serialization import to_json
 
 variable_api = VariableApi(api_client)
 
@@ -37,7 +38,7 @@ async def list_variables(
         kwargs["order_by"] = order_by
 
     response = call_with_token_refresh(variable_api.get_variables, **kwargs)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def create_variable(
@@ -52,12 +53,12 @@ async def create_variable(
 
     variable_body = VariableBody(**var_kwargs)
     response = call_with_token_refresh(variable_api.post_variable, variable_body=variable_body)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def get_variable(key: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
     response = call_with_token_refresh(variable_api.get_variable, variable_key=key)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def update_variable(
@@ -80,7 +81,7 @@ async def update_variable(
         variable_body=variable_body,
         update_mask=update_mask,
     )
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def delete_variable(key: str) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:

@@ -14,6 +14,7 @@ from airflow_client.client.models import (
 
 from src.airflow.airflow_client import api_client, call_with_token_refresh
 from src.envs import AIRFLOW_HOST
+from src.airflow.serialization import to_json
 
 dag_run_api = DagRunApi(api_client)
 
@@ -100,7 +101,7 @@ async def post_dag_run(
 
     trigger_body = TriggerDAGRunPostBody(**trigger_kwargs)
     response = call_with_token_refresh(dag_run_api.trigger_dag_run, dag_id=dag_id, trigger_dag_run_post_body=trigger_body)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def get_dag_runs(
@@ -145,7 +146,7 @@ async def get_dag_runs(
     for dag_run in response_dict.get("dag_runs", []):
         dag_run["ui_url"] = get_dag_run_url(dag_id, dag_run["dag_run_id"])
 
-    return [types.TextContent(type="text", text=str(response_dict))]
+    return [types.TextContent(type="text", text=to_json(response_dict))]
 
 
 async def get_dag_run(
@@ -154,7 +155,7 @@ async def get_dag_run(
     response = call_with_token_refresh(dag_run_api.get_dag_run, dag_id=dag_id, dag_run_id=dag_run_id)
     response_dict = response.to_dict()
     response_dict["ui_url"] = get_dag_run_url(dag_id, dag_run_id)
-    return [types.TextContent(type="text", text=str(response_dict))]
+    return [types.TextContent(type="text", text=to_json(response_dict))]
 
 
 async def patch_dag_run(
@@ -182,7 +183,7 @@ async def patch_dag_run(
         dag_run_patch_body=patch_body,
         update_mask=update_mask,
     )
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def delete_dag_run(
@@ -206,7 +207,7 @@ async def clear_dag_run(
         dag_run_id=dag_run_id,
         dag_run_clear_body=clear_body,
     )
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def get_upstream_asset_events(
@@ -214,4 +215,4 @@ async def get_upstream_asset_events(
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
     """Get upstream asset events for a DAG run (formerly dataset events)."""
     response = call_with_token_refresh(dag_run_api.get_upstream_asset_events, dag_id=dag_id, dag_run_id=dag_run_id)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]

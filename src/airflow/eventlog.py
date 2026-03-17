@@ -5,6 +5,7 @@ import mcp.types as types
 from airflow_client.client.api.event_log_api import EventLogApi
 
 from src.airflow.airflow_client import api_client, call_with_token_refresh
+from src.airflow.serialization import to_json
 
 event_log_api = EventLogApi(api_client)
 
@@ -107,11 +108,11 @@ async def get_event_logs(
         kwargs["excluded_events"] = excluded_events
 
     response = call_with_token_refresh(event_log_api.get_event_logs, **kwargs)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def get_event_log(
     event_log_id: int,
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
     response = call_with_token_refresh(event_log_api.get_event_log, event_log_id=event_log_id)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]

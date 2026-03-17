@@ -4,6 +4,7 @@ import mcp.types as types
 from airflow_client.client.api.plugin_api import PluginApi
 
 from src.airflow.airflow_client import api_client, call_with_token_refresh
+from src.airflow.serialization import to_json
 
 plugin_api = PluginApi(api_client)
 
@@ -37,4 +38,4 @@ async def get_plugins(
         kwargs["offset"] = offset
 
     response = call_with_token_refresh(plugin_api.get_plugins, **kwargs)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]

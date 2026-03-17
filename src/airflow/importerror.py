@@ -4,6 +4,7 @@ import mcp.types as types
 from airflow_client.client.api.import_error_api import ImportErrorApi
 
 from src.airflow.airflow_client import api_client, call_with_token_refresh
+from src.airflow.serialization import to_json
 
 import_error_api = ImportErrorApi(api_client)
 
@@ -31,11 +32,11 @@ async def get_import_errors(
         kwargs["order_by"] = order_by
 
     response = call_with_token_refresh(import_error_api.get_import_errors, **kwargs)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def get_import_error(
     import_error_id: int,
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
     response = call_with_token_refresh(import_error_api.get_import_error, import_error_id=import_error_id)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]

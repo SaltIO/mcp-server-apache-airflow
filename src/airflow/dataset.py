@@ -10,6 +10,7 @@ import mcp.types as types
 from airflow_client.client.api.asset_api import AssetApi
 
 from src.airflow.airflow_client import api_client, call_with_token_refresh
+from src.airflow.serialization import to_json
 
 asset_api = AssetApi(api_client)
 
@@ -76,7 +77,7 @@ async def get_datasets(
         kwargs["only_active"] = only_active
 
     response = call_with_token_refresh(asset_api.get_assets, **kwargs)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def get_dataset(
@@ -84,7 +85,7 @@ async def get_dataset(
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
     """Get an asset (formerly dataset) by ID."""
     response = call_with_token_refresh(asset_api.get_asset, asset_id=asset_id)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def get_dataset_events(
@@ -129,7 +130,7 @@ async def get_dataset_events(
         kwargs["timestamp_lt"] = timestamp_lt
 
     response = call_with_token_refresh(asset_api.get_asset_events, **kwargs)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def create_dataset_event(
@@ -144,7 +145,7 @@ async def create_dataset_event(
         event_body["extra"] = extra
 
     response = call_with_token_refresh(asset_api.create_asset_event, create_asset_events_body=event_body)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def get_dag_dataset_queued_event(
@@ -157,7 +158,7 @@ async def get_dag_dataset_queued_event(
     if before is not None:
         kwargs["before"] = before
     response = call_with_token_refresh(asset_api.get_dag_asset_queued_event, **kwargs)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def get_dag_dataset_queued_events(
@@ -169,7 +170,7 @@ async def get_dag_dataset_queued_events(
     if before is not None:
         kwargs["before"] = before
     response = call_with_token_refresh(asset_api.get_dag_asset_queued_events, **kwargs)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def delete_dag_dataset_queued_event(
@@ -182,7 +183,7 @@ async def delete_dag_dataset_queued_event(
     if before is not None:
         kwargs["before"] = before
     response = call_with_token_refresh(asset_api.delete_dag_asset_queued_event, **kwargs)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def delete_dag_dataset_queued_events(
@@ -194,7 +195,7 @@ async def delete_dag_dataset_queued_events(
     if before is not None:
         kwargs["before"] = before
     response = call_with_token_refresh(asset_api.delete_dag_asset_queued_events, **kwargs)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def get_dataset_queued_events(
@@ -206,7 +207,7 @@ async def get_dataset_queued_events(
     if before is not None:
         kwargs["before"] = before
     response = call_with_token_refresh(asset_api.get_asset_queued_events, **kwargs)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def delete_dataset_queued_events(
@@ -218,7 +219,7 @@ async def delete_dataset_queued_events(
     if before is not None:
         kwargs["before"] = before
     response = call_with_token_refresh(asset_api.delete_asset_queued_events, **kwargs)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 # New Airflow 3.x Asset API methods
@@ -241,7 +242,7 @@ async def get_asset_aliases(
         kwargs["name_pattern"] = name_pattern
 
     response = call_with_token_refresh(asset_api.get_asset_aliases, **kwargs)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def get_asset_alias(
@@ -249,7 +250,7 @@ async def get_asset_alias(
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
     """Get an asset alias by ID."""
     response = call_with_token_refresh(asset_api.get_asset_alias, asset_alias_id=asset_alias_id)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def materialize_asset(
@@ -257,4 +258,4 @@ async def materialize_asset(
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
     """Trigger materialization of an asset."""
     response = call_with_token_refresh(asset_api.materialize_asset, asset_id=asset_id)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]

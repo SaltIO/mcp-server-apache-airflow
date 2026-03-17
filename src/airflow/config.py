@@ -4,6 +4,7 @@ import mcp.types as types
 from airflow_client.client.api.config_api import ConfigApi
 
 from src.airflow.airflow_client import api_client, call_with_token_refresh
+from src.airflow.serialization import to_json
 
 config_api = ConfigApi(api_client)
 
@@ -25,11 +26,11 @@ async def get_config(
         kwargs["section"] = section
 
     response = call_with_token_refresh(config_api.get_config, **kwargs)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def get_value(
     section: str, option: str
 ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
     response = call_with_token_refresh(config_api.get_value, section=section, option=option)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]

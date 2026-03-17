@@ -7,6 +7,7 @@ import mcp.types as types
 from airflow_client.client.api.monitor_api import MonitorApi
 
 from src.airflow.airflow_client import api_client, call_with_token_refresh
+from src.airflow.serialization import to_json
 
 monitor_api = MonitorApi(api_client)
 
@@ -24,4 +25,4 @@ async def get_health() -> List[Union[types.TextContent, types.ImageContent, type
     It includes info about metadatabase and last heartbeat of scheduler and triggerer.
     """
     response = call_with_token_refresh(monitor_api.get_health)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]

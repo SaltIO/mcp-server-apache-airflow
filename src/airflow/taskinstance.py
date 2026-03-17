@@ -8,6 +8,7 @@ from airflow_client.client.api.task_instance_api import TaskInstanceApi
 from airflow_client.client.models import PatchTaskInstanceBody
 
 from src.airflow.airflow_client import api_client, call_with_token_refresh
+from src.airflow.serialization import to_json
 
 task_instance_api = TaskInstanceApi(api_client)
 
@@ -47,7 +48,7 @@ async def get_task_instance(
         dag_run_id=dag_run_id,
         task_id=task_id,
     )
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def list_task_instances(
@@ -107,7 +108,7 @@ async def list_task_instances(
         dag_run_id=dag_run_id,
         **kwargs,
     )
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def update_task_instance(
@@ -132,7 +133,7 @@ async def update_task_instance(
         patch_task_instance_body=patch_body,
         update_mask=update_mask,
     )
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def get_log(
@@ -145,7 +146,7 @@ async def get_log(
         task_id=task_id,
         try_number=try_number,
     )
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def list_task_instance_tries(
@@ -159,4 +160,4 @@ async def list_task_instance_tries(
         dag_run_id=dag_run_id,
         task_id=task_id,
     )
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]

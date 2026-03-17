@@ -4,6 +4,7 @@ import mcp.types as types
 from airflow_client.client.api.x_com_api import XComApi
 
 from src.airflow.airflow_client import api_client, call_with_token_refresh
+from src.airflow.serialization import to_json
 
 xcom_api = XComApi(api_client)
 
@@ -37,7 +38,7 @@ async def get_xcom_entries(
         kwargs["offset"] = offset
 
     response = call_with_token_refresh(xcom_api.get_xcom_entries, dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, **kwargs)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
 
 
 async def get_xcom_entry(
@@ -62,4 +63,4 @@ async def get_xcom_entry(
         xcom_api.get_xcom_entry,
         dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, xcom_key=xcom_key, **kwargs
     )
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]

@@ -4,6 +4,7 @@ import mcp.types as types
 from airflow_client.client.api.provider_api import ProviderApi
 
 from src.airflow.airflow_client import api_client, call_with_token_refresh
+from src.airflow.serialization import to_json
 
 provider_api = ProviderApi(api_client)
 
@@ -37,4 +38,4 @@ async def get_providers(
         kwargs["offset"] = offset
 
     response = call_with_token_refresh(provider_api.get_providers, **kwargs)
-    return [types.TextContent(type="text", text=str(response.to_dict()))]
+    return [types.TextContent(type="text", text=to_json(response.to_dict()))]
